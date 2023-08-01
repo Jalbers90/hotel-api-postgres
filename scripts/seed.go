@@ -5,8 +5,13 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
+	"time"
 
+	"github.com/Jalbers90/hotel-api-postgres/db"
+	"github.com/Jalbers90/hotel-api-postgres/db/fixtures"
 	"github.com/Jalbers90/hotel-api-postgres/types"
+	"github.com/joho/godotenv"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
@@ -14,24 +19,31 @@ import (
 
 type Config struct {
 	Host     string
-	Port     int
+	Port     string
 	User     string
 	Password string
 	Database string
 	SSLMode  string
 }
 
+const (
+	DAY = time.Second * 86400
+)
+
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal(err)
+	}
 	config := Config{
 		Host:     "localhost",
-		Port:     5432,
-		User:     "admin",
-		Password: "admin",
-		Database: "hotel",
+		Port:     os.Getenv("DB_PORT"),
+		User:     os.Getenv("PG_USER"),
+		Password: os.Getenv("PG_PASSWORD"),
+		Database: os.Getenv("DB_NAME"),
 		SSLMode:  "disable",
 	}
 	connStr := fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		config.User,
 		config.Password,
 		config.Host,
@@ -39,40 +51,40 @@ func main() {
 		config.Database,
 		config.SSLMode,
 	)
-	// Open a PostgreSQL database.
-	// pgconn := pgdriver.NewConnector(
-	// 	pgdriver.WithNetwork("tcp"),
-	// 	pgdriver.WithAddr("localhost:5432"),
-	// 	// pgdriver.WithTLSConfig(&tls.Config{InsecureSkipVerify: true}),
-	// 	pgdriver.WithUser("admin"),
-	// 	pgdriver.WithPassword("admin"),
-	// 	pgdriver.WithDatabase("hotel"),
-	// 	pgdriver.WithApplicationName("DB:hotel"),
-	// 	pgdriver.WithTimeout(5*time.Second),
-	// 	pgdriver.WithDialTimeout(5*time.Second),
-	// 	pgdriver.WithReadTimeout(5*time.Second),
-	// 	pgdriver.WithWriteTimeout(5*time.Second),
-	// 	pgdriver.WithConnParams(map[string]interface{}{
-	// 		"search_path": "my_search_path",
-	// 	}),
-	// )
 	pgdb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(connStr)))
-	db := bun.NewDB(pgdb, pgdialect.New())
-	// defer db.Close()
+	bunDB := bun.NewDB(pgdb, pgdialect.New())
+	defer bunDB.Close()
 
-	// Create users table.
-	// _, err := db.NewCreateTable().Model((*types.User)(nil)).Exec(context.Background())
-	// if err != nil {
-	// 	fmt.Println("hi there")
-	// 	log.Fatal(err)
-	// }
-
-	user := &types.User{
-		FirstName: "Amy",
-		LastName:  "Albers",
-	}
-	_, err := db.NewInsert().Model(user).Exec(context.Background())
+	// RESET TABLES
+	err := bunDB.ResetModel(context.Background(), (*types.User)(nil), (*types.Hotel)(nil), (*types.Room)(nil), (*types.Booking)(nil))
 	if err != nil {
 		log.Fatal(err)
 	}
+	userStore := db.NewPGUserStore(bunDB)
+	hotelStore := db.NewPGHotelStore(bunDB)
+	roomStore := db.NewPGRoomStore(bunDB)
+	bookingStore := db.NewPGBookingStore(bunDB)
+	// _ = bookingStore
+	fixtures.AddUser(userStore, "John", "Albers", "john@albers.com", "password", true)
+	newUser := fixtures.AddUser(userStore, "Amy", "Albers", "amy@albers.com", "password", false)
+
+	hotel1 := fixtures.AddHotel(hotelStore, "Hilton", "Texas", 5)
+
+	room1 := fixtures.AddRoom(roomStore, hotel1.HotelID, "King", 99.99)
+	//_ = room1
+	fixtures.AddRoom(roomStore, hotel1.HotelID, "Queen", 109.99)
+	fixtures.AddRoom(roomStore, hotel1.HotelID, "Suite", 199.99)
+
+	fixtures.AddBooking(bookingStore, newUser.ID, room1.RoomID, time.Now(), time.Now().Add(DAY), 2)
+
+	hotel2 := fixtures.AddHotel(hotelStore, "marriot", "Florida", 4)
+	fixtures.AddRoom(roomStore, hotel2.HotelID, "King", 99.99)
+	fixtures.AddRoom(roomStore, hotel2.HotelID, "Queen", 109.99)
+	fixtures.AddRoom(roomStore, hotel2.HotelID, "Suite", 199.99)
+	hotel3 := fixtures.AddHotel(hotelStore, "Hotel Motel Holiday Inn", "Chiraq", 1)
+	fixtures.AddRoom(roomStore, hotel3.HotelID, "King", 99.99)
+	fixtures.AddRoom(roomStore, hotel3.HotelID, "Queen", 109.99)
+	fixtures.AddRoom(roomStore, hotel3.HotelID, "Suite", 199.99)
+	fmt.Printf("%+v\n", newUser)
+	fmt.Printf("%+v\n", hotel3)
 }

@@ -11,6 +11,8 @@ const USERTABLE = "users"
 
 type UserStore interface {
 	GetUsers(context.Context, types.Map) ([]*types.User, error)
+	GetUserByID(context.Context, int) (*types.User, error)
+	InsertUser(context.Context, *types.User) (*types.User, error)
 }
 
 type PGUserStore struct {
@@ -40,4 +42,13 @@ func (s *PGUserStore) GetUserByID(ctx context.Context, id int) (*types.User, err
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (s *PGUserStore) InsertUser(ctx context.Context, userToInsert *types.User) (*types.User, error) {
+	var newUser types.User
+	_, err := s.db.NewInsert().Model(userToInsert).Returning("*").Exec(ctx, &newUser) // would not actually want to return password
+	if err != nil {
+		return nil, err
+	}
+	return &newUser, nil
 }
