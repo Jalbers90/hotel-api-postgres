@@ -65,17 +65,18 @@ func main() {
 	roomStore := db.NewPGRoomStore(bunDB)
 	bookingStore := db.NewPGBookingStore(bunDB)
 	// _ = bookingStore
-	fixtures.AddUser(userStore, "John", "Albers", "john@albers.com", "password", true)
-	newUser := fixtures.AddUser(userStore, "Amy", "Albers", "amy@albers.com", "password", false)
+	user1 := fixtures.AddUser(userStore, "John", "Albers", "john@albers.com", "password", true)
+	user2 := fixtures.AddUser(userStore, "Amy", "Albers", "amy@albers.com", "password", false)
 
 	hotel1 := fixtures.AddHotel(hotelStore, "Hilton", "Texas", 5)
 
 	room1 := fixtures.AddRoom(roomStore, hotel1.HotelID, "King", 99.99)
 	//_ = room1
-	fixtures.AddRoom(roomStore, hotel1.HotelID, "Queen", 109.99)
+	room2 := fixtures.AddRoom(roomStore, hotel1.HotelID, "Queen", 109.99)
 	fixtures.AddRoom(roomStore, hotel1.HotelID, "Suite", 199.99)
 
-	fixtures.AddBooking(bookingStore, newUser.ID, room1.RoomID, time.Now(), time.Now().Add(DAY), 2)
+	fixtures.AddBooking(bookingStore, user1.ID, room1.RoomID, time.Now(), time.Now().Add(DAY), 1)
+	fixtures.AddBooking(bookingStore, user2.ID, room2.RoomID, time.Now(), time.Now().Add(DAY), 2)
 
 	hotel2 := fixtures.AddHotel(hotelStore, "marriot", "Florida", 4)
 	fixtures.AddRoom(roomStore, hotel2.HotelID, "King", 99.99)
@@ -85,6 +86,6 @@ func main() {
 	fixtures.AddRoom(roomStore, hotel3.HotelID, "King", 99.99)
 	fixtures.AddRoom(roomStore, hotel3.HotelID, "Queen", 109.99)
 	fixtures.AddRoom(roomStore, hotel3.HotelID, "Suite", 199.99)
-	fmt.Printf("%+v\n", newUser)
+	fmt.Printf("%+v\n", user1)
 	fmt.Printf("%+v\n", hotel3)
 }
